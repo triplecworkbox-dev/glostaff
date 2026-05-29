@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: #f8f9fb;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display { font-family: var(--font-display); }
+
+/* Smooth scrolling */
+html { scroll-behavior: smooth; }
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid #4a78fa;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
