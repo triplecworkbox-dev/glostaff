@@ -1,10 +1,7 @@
 import { auth } from '@clerk/nextjs';
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import { agents, type AgentId, type Country } from '@/lib/agents';
 import { getUserSubscription } from '@/lib/subscription';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: NextRequest) {
   const { userId } = auth();
@@ -25,19 +22,37 @@ export async function POST(req: NextRequest) {
   if (!agent) return NextResponse.json({ error: 'Invalid agent' }, { status: 400 });
 
   const systemPrompt = agent[country].system;
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) return NextResponse.json({ error: 'AI not configured' }, { status: 500 });
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-    });
+    // Gemini uses 'model' instead of 'assistant' for role
+    const contents = messages.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
 
-    const text = response.content.find((c) => c.type === 'text')?.text || '';
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: { maxOutputTokens: 1024 },
+        }),
+      }
+    );
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received.';
     return NextResponse.json({ content: text });
   } catch (e: any) {
-    console.error('Anthropic error:', e);
+    console.error('Gemini error:', e);
     return NextResponse.json({ error: 'AI service error. Please try again.' }, { status: 500 });
   }
 }
